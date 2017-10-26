@@ -1,0 +1,5 @@
+Final Model:
+Total_C ~ NSI_Q2 + NSI_Q4 + SOT + LOC
+
+
+General: NSI_Tot_Score

@@ -1,0 +1,191 @@
+---
+title: "Vestib_09202017"
+author: "P. Hoover"
+date: "September 20, 2017"
+output: 
+  html_document:
+    include:
+      in_header: test.html
+    theme: flatly
+    highlight: tango
+
+---
+
+```{r setup, include=FALSE}
+#Load Libraries
+library(dplyr)
+library(xlsx)
+library(tidyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+library(DT)
+library(car)
+
+#Set Global Chunk Options
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(fig.width=8,fig.height=8,echo=TRUE,warning=FALSE,message=FALSE) 
+
+#Load Datasets
+load("final_df.RData")
+
+means<-function(x){
+  mean(x,na.rm=TRUE)
+}
+
+sds<-function(x){
+  sd(x,na.rm=TRUE)
+}
+
+gender<-final_df%>%group_by(Gender)%>%summarise(N=n())%>%mutate(Percent=round(N/sum(N)*100,2))%>%arrange(desc(N))
+service<-final_df%>%group_by(Service)%>%summarise(N=n())%>%mutate(Percent=round(N/sum(N)*100,2))%>%arrange(desc(N))
+
+final_df$Age_lbl<-ifelse(final_df$Age>18&final_df$Age<25,"20 to 24",
+                         ifelse(final_df$Age>24&final_df$Age<30,"25 to 29",
+                                ifelse(final_df$Age>29&final_df$Age<35,"30 to 34",
+                                       ifelse(final_df$Age>34&final_df$Age<40,"35 to 39",
+                                              ifelse(final_df$Age>39&final_df$Age<45,"40 to 44",
+                                                     ifelse(final_df$Age>44&final_df$Age<50,"45 to 49",
+                                                            ifelse(final_df$Age>49&final_df$Age<55,"50 to 54",
+                                                                   ifelse(final_df$Age>54,"55 to 60",NA))))))))
+
+final_df$Age_lbl<-factor(final_df$Age_lbl,levels=c("20 to 24","25 to 29", "30 to 34", "35 to 39", "40 to 44", "45 to 49", "50 to 54", "55 to 60" ))
+age<-final_df%>%group_by(Age_lbl)%>%summarise(N=n())%>%mutate(Percent=round(N/sum(N)*100,2))
+
+final_df$symp_tot<-rowSums(final_df[,c(41:45)]=="X")
+final_df$SOT<-as.numeric(final_df$SOT)
+final_df$FGA<-sub("/30","",final_df$FGA)
+final_df$FGA<-as.numeric(final_df$FGA)
+
+```
+
+## Demographic Information
+
+
+<center> Total Patients: `r length(unique(final_df$ID))` </center>
+
+<center> Time in Service:  `r round(means(final_df$TimeInService),2)` &plusmn; `r round(sds(final_df$TimeInService),2)` </center>
+
+<center> Average Patient Age: `r round(means(final_df$Age),2)` &plusmn; `r round(sds(final_df$Age),2)` </center>
+
+***
+
+<h4> Patient Age Labeled:  </h4>
+
+***
+
+`r kable(age)`
+
+***
+
+<h4> Gender Counts: </h4> 
+
+*** 
+
+`r kable(gender)` 
+
+***
+
+<h4> Service Counts: </h4> 
+
+***
+
+`r kable(service)` 
+
+***
+##Central Counts 
+
+***
+<center> Average Central Counts: `r round(means(final_df$Total_C),2)` &plusmn; `r round(sds(final_df$Total_C),2)` </center>
+
+<center> Median Central Counts: `r round(median(final_df$Total_C,na.rm=TRUE),2)` </center>
+
+<center> Total Number of Central Tests: ~17 </center>
+
+***
+&nbsp; 
+```{r Vestib, include=TRUE,echo=FALSE,fig.align='center'}
+ccount<-final_df%>%
+  group_by(Total_C)%>%
+  summarise(N=n())%>%
+  mutate(Perc=round(N/sum(N)*100,2))%>%
+  filter(!is.na(Total_C))
+
+kable(ccount)
+
+ggplot(final_df,aes(x=Total_C))+geom_bar(fill="navyblue",binwidth = .5)+ggtitle("Histogram of Total Number of Central Signs")+theme(plot.title=element_text(hjust=0.5,vjust=0.1))+scale_y_continuous(expand=c(0,0))+xlab("Total Number of Centeral Signs")+ylab("Frequency")+expand_limits(y=c(0,175))
+```
+
+
+#Patient Complaints
+
+```{r complains, include=TRUE,echo=FALSE}
+symp<-final_df[,grep("\\_Present",names(final_df))]
+total<-rowSums(symp[]=="X")
+
+
+```
+
+<center> Average Number of Patient Symptoms: `r round(means(total),2)` &plusmn; `r round(sds(total),2)` </center>
+
+```{r symp counts,include=TRUE,echo=FALSE}
+symps<-symp%>%
+  summarise_all(funs(N=sum(.=="X")))%>%
+  gather()%>%
+  mutate(Prop=round(value/773*100,2))
+symps[,1]<-gsub("\\_Present_N","",symps[,1])
+names(symps)<-paste(c("Symptoms","N","Perc"))
+
+kable(symps)
+```
+
+#Central Signs
+
+```{r vestib compare, include=TRUE, echo=FALSE}
+abnormals<-final_df[,grep("\\_Abnormal",names(final_df))]
+
+abs<-abnormals%>%
+  summarise_all(funs(sum(.=="C",na.rm=TRUE)))%>%
+  gather()%>%
+  arrange(desc(value))%>%
+  mutate(P=round(value/773*100,2))%>%
+  filter(!value==0)
+abs[,1]<-gsub("\\_Abnormal","",abs[,1])
+abs[,1]<-gsub("\\Vestibular_","",abs[,1])
+names(abs)<-paste(c("Test","Sum","Perc"))
+kable(abs)
+```
+
+
+#Variable Exploration {.tabset}
+##Demographics Against Total Central
+```{r dem_scatter, include=TRUE, echo=FALSE,fig.width=10,fig.height=10}
+#Formulas
+dem<-(~Age+LOC+AOC+PTA+TimeInService+symp_tot+Total_C)
+sur<-(~ABC_Tot_Score+NSI_Tot_Score+PCLM_Tot_Score+PHQ9_Tot_Score+GAD7_Tot_Score+DHI_Tot_Score+FGA+SOT+Total_C)
+
+scatterplotMatrix(dem,data=final_df)
+```
+
+##Surveys Against Total Central
+```{r survey_scatter,include=TRUE, echo=FALSE,fig.width=10,fig.height=10}
+scatterplotMatrix(sur,data=final_df)
+```
+
+
+##Variable Significance Testing {.tabset}
+#Regression Exploration
+```{r reg, include=TRUE,echo=FALSE}
+formula<-Total_C~ABC_Tot_Score+NSI_Tot_Score+PCLM_Tot_Score+PHQ9_Tot_Score+GAD7_Tot_Score+DHI_Tot_Score+FGA+SOT+LOC+AOC+PTA+TimeInService+symp_tot
+lm_d<-final_df%>%
+  select(c('ABC_Tot_Score','NSI_Tot_Score','PCLM_Tot_Score','PHQ9_Tot_Score','GAD7_Tot_Score','DHI_Tot_Score','FGA','SOT','LOC','AOC','PTA','TimeInService','symp_tot','Total_C'))
+lm_d[]<-scale(lm_d)
+
+lm(formula,data=lm_d)
+
+
+```
+
+
+

@@ -1,0 +1,760 @@
+---
+title: "Vestib_09202017"
+author: "P. Hoover"
+date: "October 26, 2017"
+output: 
+  html_document:
+    include:
+      in_header: test.html
+    theme: flatly
+    highlight: tango
+
+---
+&nbsp; This explores potential numeric cutoff of central signs in the diagnosis of central dysfunction. Data obtained from 07182017 Data Request was utilized for this analysis.
+
+```{r setup, include=FALSE}
+#Load Libraries
+library(dplyr)
+#library(xlsx)
+library(tidyr)
+library(reshape2)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+library(DT)
+library(car)
+library(effsize)
+library(plotly)
+
+#Set Global Chunk Options
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(fig.width=8,fig.height=8,echo=TRUE,warning=FALSE,message=FALSE) 
+
+#Load Datasets
+load("final_df.RData")
+
+means<-function(x){
+  mean(x,na.rm=TRUE)}
+
+sds<-function(x){
+  sd(x,na.rm=TRUE)}
+
+gender<-final_df%>%group_by(Gender)%>%summarise(N=n())%>%mutate(Percent=round(N/sum(N)*100,2))%>%arrange(desc(N))
+service<-final_df%>%group_by(Service)%>%summarise(N=n())%>%mutate(Percent=round(N/sum(N)*100,2))%>%arrange(desc(N))
+
+final_df$Age_lbl<-ifelse(final_df$Age>18&final_df$Age<25,"20 to 24",
+                         ifelse(final_df$Age>24&final_df$Age<30,"25 to 29",
+                                ifelse(final_df$Age>29&final_df$Age<35,"30 to 34",
+                                       ifelse(final_df$Age>34&final_df$Age<40,"35 to 39",
+                                              ifelse(final_df$Age>39&final_df$Age<45,"40 to 44",
+                                                     ifelse(final_df$Age>44&final_df$Age<50,"45 to 49",
+                                                            ifelse(final_df$Age>49&final_df$Age<55,"50 to 54",
+                                                                   ifelse(final_df$Age>54,"55 to 60",NA))))))))
+
+final_df$Age_lbl<-factor(final_df$Age_lbl,levels=c("20 to 24","25 to 29", "30 to 34", "35 to 39", "40 to 44", "45 to 49", "50 to 54", "55 to 60" ))
+age<-final_df%>%group_by(Age_lbl)%>%summarise(N=n())%>%mutate(Percent=round(N/sum(N)*100,2))
+
+final_df$symp_tot<-rowSums(final_df[,c(41:45)]=="X")
+final_df$SOT<-as.numeric(final_df$SOT)
+final_df$FGA<-sub("/30","",final_df$FGA)
+final_df$FGA<-as.numeric(final_df$FGA)
+
+#DHI_ext<-read.xlsx("DHI_Extension.xlsx",header=TRUE,sheetName="DHI")
+#save(DHI_ext,file="DHI_ext.RData")
+load("DHI_ext.RData")
+load("pt_meds.RData")
+
+#Set Medication Lists 
+pm<-pt_meds%>%
+  filter(Time=="PM")%>%
+  filter(Control=="C")%>%
+  distinct(ID)
+
+am<-pt_meds%>%
+  filter(Time=="AM")%>%
+  filter(Control=="C")%>%
+  distinct(ID)
+
+pam<-pt_meds%>%
+  filter(Control=="C")%>%
+  distinct(ID)
+
+#Subset entire dataset for Medication usage
+#final_df<-final_df%>% filter(!ID%in% am$ID)
+
+```
+
+## Demographic Information
+
+<center> Total Patients: `r length(unique(final_df$ID))` </center>
+
+<center> Time in Service:  `r round(means(final_df$TimeInService),2)` &plusmn; `r round(sds(final_df$TimeInService),2)` </center>
+
+<center> Average Patient Age: `r round(means(final_df$Age),2)` &plusmn; `r round(sds(final_df$Age),2)` </center>
+
+***
+
+<h4> Patient Age Labeled:  </h4>
+
+***
+
+`r kable(age)`
+
+***
+
+<h4> Gender Counts: </h4> 
+
+*** 
+
+`r kable(gender)` 
+
+***
+
+<h4> Service Counts: </h4> 
+
+***
+
+`r kable(service)` 
+
+***
+#Patient Complaints
+&nbsp; The details of complaints are listed below. Total number of patients who exhibited each complaint as well as the percentage of patients with said complaint. 
+```{r complains, include=TRUE,echo=FALSE}
+symp<-final_df[,grep("\\_Present",names(final_df))]
+total<-rowSums(symp[]=="X")
+
+```
+
+<center> Average Number of Patient Symptoms: `r round(means(total),2)` &plusmn; `r round(sds(total),2)` </center>
+
+```{r symp counts,include=TRUE,echo=FALSE}
+symps<-symp%>%
+  summarise_all(funs(N=sum(.=="X")))%>%
+  gather()%>%
+  mutate(Prop=round(value/773*100,2))%>%
+  arrange(desc(value))
+symps[,1]<-gsub("\\_Present_N","",symps[,1])
+names(symps)<-paste(c("Symptoms","N","Perc"))
+
+kable(symps)
+
+```
+
+***
+##Central Counts 
+
+***
+<center> Average Central Counts: `r round(means(final_df$Total_C),2)` &plusmn; `r round(sds(final_df$Total_C),2)` </center>
+
+<center> Median Central Counts: `r round(median(final_df$Total_C,na.rm=TRUE),2)` </center>
+
+<center> Total Number of Central Tests: ~17 </center>
+
+***
+&nbsp; 
+```{r Vestib, include=TRUE,echo=FALSE,fig.align='center'}
+ccount<-final_df%>%
+  group_by(Total_C)%>%
+  summarise(N=n())%>%
+  filter(!is.na(Total_C))%>%
+  arrange(-Total_C)%>%
+  mutate(CumN=cumsum(N))%>%
+  mutate(Perc=round(N/sum(N)*100,2))%>%
+  mutate(CumPerc=cumsum(Perc))
+  
+kable(ccount)
+
+ggplot(final_df,aes(x=Total_C))+geom_bar(fill="navyblue",binwidth = .5)+ggtitle("Histogram of Total Number of Central Signs")+theme(plot.title=element_text(hjust=0.5,vjust=0.1))+scale_y_continuous(expand=c(0,0))+xlab("Total Number of Centeral Signs")+ylab("Frequency")+expand_limits(y=c(0,175))
+```
+
+
+#Central Signs
+&nbsp; Below outlines the total number of patients with central findings per assessment. The percent is the percentage of patients who exhibited a central sign for that test. 
+```{r vestib compare, include=TRUE, echo=FALSE}
+abnormals<-final_df[,grep("\\_Abnormal",names(final_df))]
+
+abs<-abnormals%>%
+  summarise_all(funs(sum(.=="C",na.rm=TRUE)))%>%
+  gather()%>%
+  arrange(desc(value))%>%
+  mutate(P=round(value/773*100,2))%>%
+  filter(!value==0)
+abs[,1]<-gsub("\\_Abnormal","",abs[,1])
+abs[,1]<-gsub("\\Vestibular_","",abs[,1])
+names(abs)<-paste(c("Test","Sum","Perc"))
+kable(abs)
+```
+
+
+#Variable Exploration {.tabset}
+&nbsp; Below are scatterplots which compare the various variables of interest. While it is interesting to see correlations among the variables, which is most significant is how these variables respond to the changes in Total_C (Total Central Signs). From here onward, we will try to use extraneous variables to compare variances within the data. 
+
+##Demographics Against Total Central
+&nbsp; Scatterplot displaying relationships among Injury and other demographics against Total_C.
+```{r dem_scatter, include=TRUE, echo=FALSE,fig.width=10,fig.height=10}
+#Formulas
+dem<-~Age+LOC+AOC+PTA+TimeInService+symp_tot+Total_C
+sur<-~ABC_Tot_Score+NSI_Tot_Score+PCLM_Tot_Score+PHQ9_Tot_Score+GAD7_Tot_Score+DHI_Tot_Score+FGA+SOT+Total_C
+scatterplotMatrix(dem,data=final_df)
+```
+
+##Surveys Against Total Central
+&nbsp; Below displays the scatterplots of the various surveys against the total number of central signs. Also, should be noted the distribution of the tests within the diagonal. 
+```{r survey_scatter,include=TRUE, echo=FALSE,fig.width=10,fig.height=10}
+scatterplotMatrix(sur,data=final_df)
+DHI_ext$P<-DHI_ext$DHI_Q1+DHI_ext$DHI_Q4+DHI_ext$DHI_Q8+DHI_ext$DHI_Q11+DHI_ext$DHI_Q13+DHI_ext$DHI_Q17+DHI_ext$DHI_Q25
+DHI_ext$Fu<-DHI_ext$DHI_Q3+DHI_ext$DHI_Q5+DHI_ext$DHI_Q6+DHI_ext$DHI_Q7+DHI_ext$DHI_Q12+DHI_ext$DHI_Q14+DHI_ext$DHI_Q16+DHI_ext$DHI_Q19+DHI_ext$DHI_Q24
+DHI_ext$E<-DHI_ext$DHI_Q2+DHI_ext$DHI_Q9+DHI_ext$DHI_Q10+DHI_ext$DHI_Q15+DHI_ext$DHI_Q18+DHI_ext$DHI_Q20+DHI_ext$DHI_Q21+DHI_ext$DHI_Q22+DHI_ext$DHI_Q23
+DHI_ext<-DHI_ext[,-4]
+dhi<-merge(final_df,DHI_ext,by="ID",all=TRUE)
+```
+
+##Individual Survey Questions
+&nbs; P, Fu, and E come from the DHI subscales - Physical, Funcional, and Emotional. 
+```{r addition, include=TRUE, echo=FALSE,fig.width=10,fig.height=10}
+#scatterplotMatrix(sur,data=final_df)
+#scatterplotMatrix(~PCLM_Section_1_5+PCLM_Q1+PCLM_Q2+PCLM_Q3+PCLM_Q4+PCLM_Q5+PCLM_Q6+P+Fu+E+Total_C,data=dhi)
+scatterplotMatrix(~NSI_Q1+NSI_Q2+NSI_Q3+NSI_Q4+NSI_Q5+P+Fu+E+Total_C,data=dhi)
+
+```
+
+
+#Changes in Means per Cutoffs {.tabset}
+&nbsp; We will compare the mean differences of surveys among our sample population with various cutoffs for Central Dysfunction. The values calculated below are 'Normal Patient Means' - 'Central Patient Means'. Dependent upon the survey, a (-) mean difference signifies that Central Patients performed worse on that particular survey. 
+
+##Surveys
+```{r mean delta, include=TRUE,echo=FALSE,align='c'}
+mean_comp<-function(df,y,ran){ #Function to subset sample population on the number of central signs while comparing the mean scores of particular tests. 
+    y=enquo(y) #Quotes r code from function within environment to be used within dplyr functions  
+  name<-paste0(quo_name(y),"_delta") #setting variable name for computation (will be used for looping)
+  c=NULL
+  b=NULL
+  for (i in 1:ran){
+    df$i<-ifelse(df$Total_C>=i,1,0)
+    i<-df%>%
+      group_by(i)%>%
+      filter(!is.na(i))%>%
+      summarise(mean=round(means(!!y),3),Total_Central_Pt=n())%>% #Unquote variable for dplyr functioning
+      mutate(!!name:=mean[i==0]-mean[i==1])%>% #Set mutation to variable name 
+      filter(i==1)%>%
+      select(!!name,Total_Central_Pt) #select particular variable
+    c=rbind(c,i)
+    #e<-df%>%
+    #  summarise(D=cohen.d(!!y,i,na.rm=TRUE)$estimate)
+    #b=rbind(b,e)
+  }
+  #kable(cbind(c,b))
+  c<-c
+}
+
+mymerge<-function(x,y){
+  merge(x,y,all=TRUE,by="Total_Central_Pt")}
+
+NSI<-mean_comp(final_df,NSI_Tot_Score,10)
+PCLM<-mean_comp(final_df,PCLM_Tot_Score,10) ##utilize this with standardized values (true meaning of delta)
+ABC<-mean_comp(final_df,ABC_Tot_Score,10)
+PHQ<-mean_comp(final_df,PHQ9_Tot_Score,10)
+GAD<-mean_comp(final_df,GAD7_Tot_Score,10)
+DHI<-mean_comp(final_df,DHI_Tot_Score,10)
+FGA<-mean_comp(final_df,FGA,10)
+SOT<-mean_comp(final_df,SOT,10)
+
+Surveys<-Reduce(mymerge, list(DHI,GAD,NSI,PCLM,PHQ))
+#kable(Surveys)
+Surveys$C<-c(10:1)
+
+sur_plot<-Surveys[,-1]
+sur_plot<-melt(sur_plot,id.var="C")
+
+g<-ggplot(sur_plot,aes(x=factor(C),y=value))+geom_point(aes(colour=variable))+geom_hline(yintercept=0)+geom_line(aes(colour=variable,group=variable))+xlab("Central Value Cutoff")+ylab("Differences in Score")+ggtitle("Comparing Total Central Sign Cutoffs Against Differences in Survey Scores")+theme(plot.title=element_text(hjust=0.5))
+ggplotly(g)
+```
+
+##Addtl Surveys
+
+```{r plots ext, include=TRUE, echo=FALSE}
+Surveys<-Reduce(mymerge, list(ABC,FGA,SOT))
+#kable(Surveys)
+Surveys$C<-c(10:1)
+
+sur_plot<-Surveys[,-1]
+sur_plot<-melt(sur_plot,id.var="C")
+
+g<-ggplot(sur_plot,aes(x=factor(C),y=value))+geom_point(aes(colour=variable))+geom_hline(yintercept=0)+geom_line(aes(colour=variable,group=variable))+xlab("Central Value Cutoff")+ylab("Differences in Score")+ggtitle("Comparing Total Central Sign Cutoffs Against Differences in Testing Scores")+theme(plot.title=element_text(hjust=0.5))
+ggplotly(g)
+
+```
+
+##Specific Survey Questions
+
+```{r additional surveys plot, include=TRUE,echo=FALSE}
+NSI_Q1<-mean_comp(final_df,NSI_Q1,10)
+NSI_Q2<-mean_comp(final_df,NSI_Q2,10)
+NSI_Q3<-mean_comp(final_df,NSI_Q3,10)
+NSI_Q4<-mean_comp(final_df,NSI_Q4,10)
+NSI_Q5<-mean_comp(final_df,NSI_Q5,10)
+
+Surveys<-Reduce(mymerge, list(NSI_Q1,NSI_Q2,NSI_Q3,NSI_Q4,NSI_Q5))
+Surveys$C<-c(10:1)
+sur_plot<-Surveys[,-1]
+sur_plot<-melt(sur_plot,id.var="C")
+
+g<-ggplot(sur_plot,aes(x=factor(C),y=value))+geom_point(aes(colour=variable))+geom_hline(yintercept=0)+geom_line(aes(colour=variable,group=variable))+xlab("Central Value Cutoff")+ylab("Differences in Score")+ggtitle("Comparing Total Central Sign Cutoffs Against Differences in Testing Scores")+theme(plot.title=element_text(hjust=0.5))
+ggplotly(g)
+
+Fu<-mean_comp(dhi,Fu,10)
+E<-mean_comp(dhi,E,10)
+P<-mean_comp(dhi,P,10)
+
+Surveys<-Reduce(mymerge, list(Fu,E,P))
+
+Surveys$C<-c(10:1)
+sur_plot<-Surveys[,-1]
+sur_plot<-melt(sur_plot,id.var="C")
+
+g<-ggplot(sur_plot,aes(x=factor(C),y=value))+geom_point(aes(colour=variable))+geom_hline(yintercept=0)+geom_line(aes(colour=variable,group=variable))+xlab("Central Value Cutoff")+ylab("Differences in Score")+ggtitle("Comparing Total Central Sign Cutoffs Against Differences in Testing Scores")+theme(plot.title=element_text(hjust=0.5))
+ggplotly(g)
+
+```
+
+#Variable Significance Testing {.tabset}
+
+##Variance Comparison
+&nbsp; Once we have determined the suggested cutoff for our grouping, we will examine the structure of the variables when comparing these two groups. Variance comparisons has been commented out. We'll first explore other methods of explaining variance.
+
+```{r comp, include=TRUE,echo=FALSE}
+#ref: http://little-book-of-r-for-multivariate-analysis.readthedocs.io/en/latest/src/multivariateanalysis.html
+aov_data<-dhi%>%
+  select('NSI_Q1','NSI_Q2','NSI_Q3','NSI_Q4','NSI_Q5','P','Fu','E','Total_C','ABC_Tot_Score','NSI_Tot_Score','PCLM_Tot_Score','PHQ9_Tot_Score','GAD7_Tot_Score','DHI_Tot_Score','FGA','SOT','LOC','AOC','PTA','TimeInService','symp_tot','Total_C','Age','Age_lbl')%>%
+  filter(complete.cases(.))
+
+auc<-NULL
+
+winvar<- function(variable,groupvariable){
+  levels <- levels(as.factor(groupvariable[[1]]))
+     numlevels<-length(levels)
+     numtotal <- 0
+     denomtotal <- 0
+     for (i in 1:numlevels) {
+        leveldata <- variable[groupvariable==levels[i]]
+        levellength <- length(leveldata)
+        sdi <- sds(leveldata)
+        numi <- (levellength - 1)*(sdi * sdi)
+        denomi <- levellength
+        numtotal <- numtotal + numi
+        denomtotal <- denomtotal + denomi     }
+     Vw <- numtotal / (denomtotal - numlevels)
+     return(Vw)
+     } #Within subject variation (variation between individual responses and group mean)
+
+btwvar <- function(variable,groupvariable){  
+     levels <- levels(as.factor(groupvariable[[1]]))
+     
+     numlevels <- length(levels)
+     grandmean <- colMeans(variable)
+     numtotal <- 0
+     for (i in 1:numlevels){  
+        levelidata <- variable[groupvariable==levels[i]]
+        levelilength <- length(levelidata)
+        meani <- means(levelidata)
+        sdi <- sds(levelidata)
+        numi <- levelilength * ((meani - grandmean)^2)
+        numtotal <- numtotal + numi     }
+     Vb <- numtotal / (numlevels - 1)
+     Vb <- Vb[[1]]
+     return(Vb)
+  } #btwn subject variation (variation between mean groups and the grand mean)
+
+seps<-function(var,groupvariable){
+  variables<-as.data.frame(var)
+  nvar<-length(variables)
+  vnames<-colnames(variables)
+  for(i in 1:nvar){
+    vari<-variables[i]
+    variablename<-vnames[i]
+    Vw<-round(winvar(vari,groupvariable),5)
+    Vb<-round(btwvar(vari,groupvariable),5)
+    sep<-round(Vb/Vw,5)
+    print(paste("Var",variablename,"vw=",Vw,"vb=",Vb,"separation=",sep))
+  }
+}
+
+#seps(aov_data[1:23],aov_data[26])
+
+#Treatment Effects per grouping (show which has the greatest treatment effect)
+
+# dataframe<-aov_data[1:13]
+# df1<-as.matrix(subset(aov_data[1:13],aov_data$I=="1"))
+# df2<-as.matrix(subset(aov_data[1:13],aov_data$I=="0"))
+# gm<-colMeans(dataframe)
+# m1<-colMeans(df1)
+# m2<-means(df2)
+# t1<-m1-gm
+# t2<-m2-gm
+# d<-t1-t2
+# 
+# w<-(nrow(df1)-1)*(var(df1)+var(df2))
+# 
+# t<-qt(1-(0.05/ncol(df1)*length(unique(aov_data$I)))*(length(unique(aov_data$I))-1),nrow(aov_data)-length(unique(aov_data$I)))
+# 
+# #u<-d+t*sqrt((1/nrow(df1)+1/nrow(df2))*(1/(nrow(dataframe)-2))*diag(w))
+# #l<-d-t*sqrt((1/nrow(df1)+1/nrow(df2))*(1/(nrow(dataframe)-2))*diag(w))
+# 
+# u<-d+t*sqrt((((1/nrow(df1))+(1/nrow(df2)))*(w[i,i])/(nrow(aov_data)-length(unique(aov_data$I)))))
+# l<-d-t*sqrt((((1/nrow(df1))+(1/nrow(df2)))*(w[i,i])/(nrow(aov_data)-length(unique(aov_data$I)))))
+# 
+# ci<-rbind(l,u)
+# ci
+# 
+# SSPC<-function(dataframe,group,nvar){
+#   df1<-as.matrix(subset(dataframe,group=="1")) #subset
+#   df2<-as.matrix(subset(dataframe,group=="0")) #subset
+#   gm<-colMeans(dataframe) #grandmeans for entire df variables
+#   m1<-means(df1) #subset means
+#   m2<-means(df2) #subset means
+#   t1<-m1-gm #mean treatment effect for group 1
+#   t2<-m2-gm #mean treatment effect for group 2
+#   d<-t1-t2 #difference in treatment effects 
+#   w<-(nrow(df1)-1)*(var(df1)+var(df2)) #compute SSPC matrix for within group variance (error)
+#   
+#   t<-qt(1-(0.05/nvar*length(unique(group)))*(length(unique(group))-1),nrow(df1)-length(unique(group))) #create multipler based off of t distribution 
+#   u<-d+t*sqrt(((1/nrow(df1))+(1/nrow(df2)))*(w)/(nrow(dataframe)-length(unique(group)))) #Create upper limit for confidence interval 
+#   l<-d-t*sqrt(((1/nrow(df1))+(1/nrow(df2)))*(w)/(nrow(dataframe)-length(unique(group)))) #Create lower limit for confidence interval (note w is applied through each iteration - no diag computation necessary)
+#   
+#   ci<-rbind(c(l,d,u)) #combine by columns for viewing
+#   ci #view
+# }
+# 
+# SSPC(aov_data[2],aov_data$I,1) #testing function
+
+
+```
+
+##Regression Exploration
+&nbsp; Utilizing a regression, we can evaluate which variables contribute most to the variance exhibited within the total number of Central Signs. After scaling the variables, it appears that SOT and NSI explain much of the variance within Total Central signs. Additional exploration will be conducted on these variables, as well as the DHI, ABC and FGA; surveys/questionnaires which hope to provide insight into the varability exhibited in the total number of central signs. 
+
+```{r reg, include=TRUE,echo=FALSE}
+formula<-Total_C~ABC_Tot_Score+NSI_Tot_Score+PCLM_Tot_Score+PHQ9_Tot_Score+GAD7_Tot_Score+DHI_Tot_Score+FGA+SOT+LOC+AOC+PTA+TimeInService+symp_tot
+lm_d<-final_df%>%
+  select('ABC_Tot_Score','NSI_Tot_Score','PCLM_Tot_Score','PHQ9_Tot_Score','GAD7_Tot_Score','DHI_Tot_Score','FGA','SOT','LOC','AOC','PTA','TimeInService','symp_tot','Total_C')%>%
+  filter(complete.cases(.))
+
+lm_d[1:13]<-scale(lm_d[1:13])
+fit<-lm(formula,data=lm_d)
+step<-MASS::stepAIC(fit,direction="both",trace=FALSE)
+step$anova
+
+RLIM<-relaimpo::calc.relimp(fit,type=c("lmg","last","first","pratt"),rela=TRUE) #Examining relative importance of variables in relation to Total_C 
+RLIM@lmg
+#RLIM@ave.coeffs
+#lmg=R2 contribution averaged over ordering among regressors
+#last=userfulness - contirbution at stage
+#first=squared covariance between y and variable
+#pratt=std coefficient and correlation
+
+#Examining Particular Question responses 
+
+formula<-Total_C~NSI_Q1+NSI_Q2+NSI_Q3+NSI_Q4+NSI_Q5+NSI_Q6+P+Fu+E+ABC_Tot_Score+FGA+SOT+LOC+AOC+PTA+TimeInService+symp_tot
+lm_d<-dhi%>%
+  select('NSI_Q1','NSI_Q2','NSI_Q3','NSI_Q4','NSI_Q5','P','Fu','E','Total_C','NSI_Q6','ABC_Tot_Score','FGA','SOT','LOC','AOC','PTA','TimeInService','symp_tot')%>%
+  filter(complete.cases(.))
+
+lm_d[1:18]<-scale(lm_d[1:18])
+fit<-lm(formula,data=lm_d)
+step<-MASS::stepAIC(fit,direction="both",trace=FALSE)
+step$anova
+
+RLIM<-relaimpo::calc.relimp(fit,type=c("lmg","last","first","pratt"),rela=TRUE) #Examining relative importance of variables in relation to Total_C 
+RLIM@lmg
+#RLIM@ave.coeffs
+```
+
+##Logistic Regression
+&nbsp; As shown in the previous tab, SOT, LOC, and NSI might explain some of the variance noticed within the Total C variable. We will reverse the analysis and look at the various groupings of Total C and compare their responses to these variables. Suggestive cutoff point would utilize 4 Total Central signs. Given the predictor variables: NSI Total Score (NSI Q2, NSI Q3), LOC, and SOT.
+
+```{r Logistic, include=TRUE, echo=TRUE}
+aov_data<-dhi%>%
+  select('NSI_Q1','NSI_Q2','NSI_Q3','NSI_Q4','NSI_Q5','P','Fu','E','Total_C','NSI_Q6','ABC_Tot_Score','NSI_Tot_Score','PCLM_Tot_Score','PHQ9_Tot_Score','GAD7_Tot_Score','DHI_Tot_Score','FGA','SOT','LOC','AOC','PTA','TimeInService','symp_tot','Total_C','Age','Age_lbl')%>%
+  filter(complete.cases(.))
+
+auc<-NULL
+for (i in 1:9){
+  Cutoff<-paste0(quo_name(i),"")
+  aov_data$I<-ifelse(aov_data$Total_C>=i,1,0)
+  logic_fit<-glm(I~ABC_Tot_Score+NSI_Tot_Score+PCLM_Tot_Score+PHQ9_Tot_Score+GAD7_Tot_Score+DHI_Tot_Score+FGA+SOT+LOC+AOC+PTA+TimeInService+symp_tot,data=aov_data,family="binomial")
+  prob<-predict(logic_fit,type=c("response"))
+  aov_data$prob=prob
+  g<-pROC::roc(I~prob,data=aov_data)
+  #plot(g)
+  a<-cbind(Cutoff,round(g$auc,4))
+  auc<-rbind(auc,a)
+}
+
+#Full Model
+print(auc)
+
+auc<-NULL
+for (i in 1:9){
+  Cutoff<-paste0(quo_name(i),"")
+  aov_data$I<-ifelse(aov_data$Total_C>=i,1,0)
+  logic_fit<-glm(I~SOT+NSI_Tot_Score+LOC,data=aov_data,family="binomial")
+  prob<-predict(logic_fit,type=c("response"))
+  aov_data$prob=prob
+  g<-pROC::roc(I~prob,data=aov_data)
+  #plot(g)
+  a<-cbind(Cutoff,round(g$auc,4))
+  auc<-rbind(auc,a)
+}
+
+#Model:TOTAL_CENTRAL~SOT+NSI_Tot_Score+LOC
+print(auc)
+
+auc<-NULL
+for (i in 1:9){
+  Cutoff<-paste0(quo_name(i),"")
+  aov_data$I<-ifelse(aov_data$Total_C>=i,1,0)
+  logic_fit<-glm(I~SOT+NSI_Q2+NSI_Q4+LOC,data=aov_data,family="binomial")
+  prob<-predict(logic_fit,type=c("response"))
+  aov_data$prob=prob
+  g<-pROC::roc(I~prob,data=aov_data)
+  #plot(g)
+  a<-cbind(Cutoff,round(g$auc,4))
+  auc<-rbind(auc,a)
+}
+
+#Model:TOTAL_CENTRAL~SOT+NSI_Q2+NSI_Q4+LOC
+print(auc)
+```
+
+##AoV Testing
+&nbsp; We will now compare variable response between the various cutoffs of Central Dysfunction. P-values are provided which result from the MANOVA testing.
+
+```{r AOV testing, include=TRUE,echo=TRUE}
+aov_list<-NULL
+for (i in 1:9){
+  aov_data$I<-ifelse(aov_data$Total_C>=i,"1","0")
+  name<-paste0(quo_name(i),"")
+  i<-round(summary(manova(cbind(ABC_Tot_Score,NSI_Tot_Score,PCLM_Tot_Score,PHQ9_Tot_Score,GAD7_Tot_Score,DHI_Tot_Score,FGA,SOT,LOC,AOC,PTA,symp_tot)~I,data=aov_data))$stats[11],5)
+  test<-cbind(name,i)
+  aov_list<-rbind(aov_list,test)}
+
+#Model: ABC_Tot_Score,NSI_Tot_Score,PCLM_Tot_Score,PHQ9_Tot_Score,GAD7_Tot_Score,DHI_Tot_Score,FGA,SOT,LOC,AOC,PTA,symp_tot~TOTAL_CENTRAL
+print(aov_list) 
+# 
+# for (i in 1:9){
+#   aov_data$I<-ifelse(aov_data$Total_C>=i,"1","0")
+#   name<-paste0(quo_name(i),"")
+#   i<-summary(manova(cbind(ABC_Tot_Score,NSI_Tot_Score,PCLM_Tot_Score,PHQ9_Tot_Score,GAD7_Tot_Score,DHI_Tot_Score,FGA,SOT,LOC,AOC,PTA,symp_tot)~I+Age,data=aov_data))
+#   print(i)
+# }
+
+aov_list<-NULL
+for (i in 1:9) {
+  aov_data$I<-ifelse(aov_data$Total_C>=i,"1","0")
+  name<-paste0(quo_name(i),"")
+  i<-round(summary(manova(cbind(NSI_Tot_Score,SOT,LOC)~I,data=aov_data))$stats[11],5)
+  test<-cbind(name,i)
+  aov_list<-rbind(aov_list,test) }
+#Model: NSI_Tot_Score+SOT+LOC~TOTAL_CENTRAL
+print(aov_list) 
+
+aov_list<-NULL
+for (i in 1:9) {
+  aov_data$I<-ifelse(aov_data$Total_C>=i,"1","0")
+  name<-paste0(quo_name(i),"")
+  i<-round(summary(manova(cbind(NSI_Q2,NSI_Q4,SOT,LOC)~I,data=aov_data))$stats[11],5)
+  test<-cbind(name,i)
+  aov_list<-rbind(aov_list,test) }
+
+#Model: NSI_Q2+NSI_Q4+SOT+LOC~TOTAL_CENTRAL
+print(aov_list) 
+```
+
+
+#Cutoffs and Specific Vestib Tests {.tabset}
+&nbsp; We will explore the population makes up utilizing two cutoff scores, 4 and 5. We will compare their mean responses on our dataset. 
+
+
+##Cutoff of 3
+
+```{r 3, include=TRUE, echo=TRUE}
+dhi$I<-ifelse(dhi$Total_C>=3,"1","0")
+vestib<-dhi[,c(2:34,205)]
+scores<-dhi[,c(38,40,68,72,83,109,88,89,90,91,92,144,163,202:205)]
+dem<-dhi[,c(164:171,41:48,205)]
+
+dm<-dem%>%
+  filter(!is.na(I))%>%
+  select(-c(Gender,Service,Special_stat,TypeParticipant,Motion_Sensitivity_Present:Syncope_pre_syncope_Present,Age_lbl))%>%
+  group_by(I)%>%
+  summarise_all(means)
+kable(dm)
+
+ss<-scores%>%
+  filter(!is.na(I))%>%
+  group_by(I)%>%
+  summarise_all(means)
+kable(ss)
+
+colnames(vestib)<-sub("Vestibular_Oculomotor_","",colnames(vestib))
+colnames(vestib)<-sub("Vestibular_Positioning_","",colnames(vestib))
+colnames(vestib)<-sub("_Abnormal","",colnames(vestib))
+
+vt<-vestib%>%
+  filter(!is.na(I))%>%
+  group_by(I)%>%
+  summarise_all(funs(sum(.=="C",na.rm=TRUE)))
+
+vt<-melt(vt)
+vt$value<-as.numeric(vt$value)
+vt$Mean<-ifelse(vt$I=="1",round(vt$value/168,3),round(vt$value/558,3))
+vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-dcast(vt,variable~I,value.var = "Mean")
+
+kable(vt)
+
+mnv<-manova(cbind(SOT,FGA, ABC_Tot_Score,DHI_Tot_Score,GAD7_Tot_Score, NSI_Tot_Score,NSI_Q2, NSI_Q3, NSI_Q4,NSI_Q5,NSI_Q6, PCLM_Tot_Score, PHQ9_Tot_Score, P, Fu)~I,data=scores)
+summary(mnv)
+summary.aov(mnv)
+
+
+mnv<-manova(cbind(NSI_Q2,NSI_Q4,SOT,LOC)~I,data=dhi)
+summary(mnv)
+summary.aov(mnv)
+
+```
+
+
+
+##Cutoff of 4
+
+```{r 4, include=TRUE, echo=TRUE}
+dhi$I<-ifelse(dhi$Total_C>=4,"1","0")
+vestib<-dhi[,c(2:34,205)]
+scores<-dhi[,c(38,40,68,72,83,109,88,89,90,91,92,144,163,202:205)]
+dem<-dhi[,c(164:171,41:48,205)]
+
+dm<-dem%>%
+  filter(!is.na(I))%>%
+  select(-c(Gender,Service,Special_stat,TypeParticipant,Motion_Sensitivity_Present:Syncope_pre_syncope_Present,Age_lbl))%>%
+  group_by(I)%>%
+  summarise_all(means)
+kable(dm)
+
+ss<-scores%>%
+  filter(!is.na(I))%>%
+  group_by(I)%>%
+  summarise_all(means)
+kable(ss)
+
+colnames(vestib)<-sub("Vestibular_Oculomotor_","",colnames(vestib))
+colnames(vestib)<-sub("Vestibular_Positioning_","",colnames(vestib))
+colnames(vestib)<-sub("_Abnormal","",colnames(vestib))
+
+vt<-vestib%>%
+  filter(!is.na(I))%>%
+  group_by(I)%>%
+  summarise_all(funs(sum(.=="C",na.rm=TRUE)))
+
+vt<-melt(vt)
+vt$value<-as.numeric(vt$value)
+vt$Mean<-ifelse(vt$I=="1",round(vt$value/168,3),round(vt$value/558,3))
+vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-dcast(vt,variable~I,value.var = "Mean")
+vt$delta<-vt$`0`-vt$`1`
+
+kable(vt)
+
+mnv<-manova(cbind(SOT,FGA, ABC_Tot_Score,DHI_Tot_Score,GAD7_Tot_Score,NSI_Q2, NSI_Q3, NSI_Q4,NSI_Q5,NSI_Q6, PCLM_Tot_Score, PHQ9_Tot_Score, P,Fu)~I,data=scores)
+summary(mnv)
+summary.aov(mnv)
+
+mnv<-manova(cbind(SOT,FGA,ABC_Tot_Score,DHI_Tot_Score,GAD7_Tot_Score,NSI_Tot_Score,PCLM_Tot_Score,PHQ9_Tot_Score,P,Fu)~I,data=scores)
+#summary(mnv)
+#summary.aov(mnv)
+
+mnv<-manova(cbind(NSI_Q2,NSI_Q4,SOT,LOC)~I,data=dhi)
+summary(mnv)
+summary.aov(mnv)
+
+```
+
+##Cutoff of 5
+
+```{r 5, include=TRUE, echo=TRUE}
+dhi$I<-ifelse(dhi$Total_C>=5,"1","0")
+vestib<-dhi[,c(2:34,205)]
+scores<-dhi[,c(38,40,68,72,83,109,88,89,90,91,92,144,163,202:205)]
+dem<-dhi[,c(164:171,41:48,205)]
+
+dm<-dem%>%
+  filter(!is.na(I))%>%
+  select(-c(Gender,Service,Special_stat,TypeParticipant,Motion_Sensitivity_Present:Syncope_pre_syncope_Present,Age_lbl))%>%
+  group_by(I)%>%
+  summarise_all(means)
+kable(dm)
+
+ss<-scores%>%
+  filter(!is.na(I))%>%
+  group_by(I)%>%
+  summarise_all(means)
+kable(ss)
+
+colnames(vestib)<-sub("Vestibular_Oculomotor_","",colnames(vestib))
+colnames(vestib)<-sub("Vestibular_Positioning_","",colnames(vestib))
+colnames(vestib)<-sub("_Abnormal","",colnames(vestib))
+
+vt<-vestib%>%
+  filter(!is.na(I))%>%
+  group_by(I)%>%
+  summarise_all(funs(sum(.=="C",na.rm=TRUE)))
+
+vt<-melt(vt)
+vt$value<-as.numeric(vt$value)
+vt$Mean<-ifelse(vt$I=="1",round(vt$value/168,3),round(vt$value/558,3))
+vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-dcast(vt,variable~I,value.var = "Mean")
+
+kable(vt)
+
+mnv<-manova(cbind(SOT,FGA, ABC_Tot_Score,DHI_Tot_Score,GAD7_Tot_Score, NSI_Tot_Score,NSI_Q2, NSI_Q3, NSI_Q4,NSI_Q5,NSI_Q6, PCLM_Tot_Score, PHQ9_Tot_Score, P, Fu)~I,data=scores)
+summary(mnv)
+summary.aov(mnv)
+
+
+mnv<-manova(cbind(NSI_Q2,NSI_Q4,SOT,LOC)~I,data=dhi)
+summary(mnv)
+summary.aov(mnv)
+
+```
+
+
+
+##Medications
+
+```{r meds, include=TRUE, echo=FALSE}
+
+dhi$am<-ifelse(dhi$ID %in% am$ID,"am","")
+sum(dhi$am=="am")
+dhi$pm<-ifelse(dhi$ID %in% pm$ID,"pm","")
+sum(dhi$pm=="pm")
+dhi$pam<-ifelse(dhi$ID %in% pam$ID,"pam","")
+sum(dhi$pam=="pam")
+
+table(dhi$am,dhi$Total_C)
+table(dhi$pm,dhi$Total_C)
+table(dhi$pam,dhi$Total_C)
+
+#ANOVA to test for differences in responses 
+```
+
+
+
+#Comments/Questions:
+Prior Percentage of patients with central dysfunction
+Particular test thats significant of central signs 
+  <Explore individuals signs - those with our cutoff score
+Control for Medications - subset data with AM/PM
+  <Significance of either 
+
+
