@@ -121,7 +121,7 @@ pam<-pt_meds%>%
 &nbsp; The details of complaints are listed below. Total number of patients who exhibited each complaint as well as the percentage of patients with said complaint. 
 ```{r complains, include=TRUE,echo=FALSE}
 symp<-final_df[,grep("\\_Present",names(final_df))]
-total<-rowSums(symp[]=="X")
+symp$total<-rowSums(symp[]=="X")
 
 ```
 
@@ -757,4 +757,8 @@ Particular test thats significant of central signs
 Control for Medications - subset data with AM/PM
   <Significance of either 
 
+Meeting Comments:
+Fix complaints/comments
+Medication and compare - look at counts as well
+Finalize Mean Comparisons - tukey/scheffe test; examine graphs - main aspect of paper
 

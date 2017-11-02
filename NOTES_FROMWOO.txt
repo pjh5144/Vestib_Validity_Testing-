@@ -1,0 +1,82 @@
+
+
+NARRATIVE SECTION:
+- Pls edit intro statement to the following: The following narrative was collected during a 60 minute interview with the above patient. Interviewer 
+notes may reflect additional injury information ascertained from the patient's intake questionnaire, initial IOP neuro history & exam and relevant AHLTA records.
+- Increase the size of the text fields (or autofit to text) for each of 5 items.  These blocks on average are ~15-20 lines.
+
+INJURY TABLE:
+- Add the following subtitle for this table: "For Research Purposes Only: Injury Table"
+- Please add the following description under the subtitle: "INTERVIEWER:List any qualifying injuries which resulted in a research determination of TBI or
+PCE and rank according to severity (where "1" is the most severe injury, also referred to as the "Index Injury").  The full narrative (above) is archived 
+for more detailed accounts of each injury.  Please use the space below to BREIFLY describe each qualifying event. ***DISCLAIMER: This is NOT a
+clinical diagnosis. The report is only to be used a clinical aid and for research purposes. ***"
+
+- Change the "None" option in the [Mechanism] field to "Other" - Completed
+- Remove the "N/A" option from the [LOC] and [AOC/PTA] fields - Completed
+- Add [Injury Type] column with options (TBI or PCE)
+- Add [TBI Severity] column with options (Mild, Moderate, Severe)
+- Add [Pre-Military] column (check box)
+- Add [Injury Rank] column numeric only, with the following notation (somewhere): "...with 1  being the most severe, index injury"
+
+- Expand table if possible to eliminate horizontal scrolling
+- Make all fields in the table a required field (EXCEPT for the [TBI Severity] field, IF [Injury Type] is "PCE")
+- Order of fields (including new fields): [Date], [Pre-Military], [Injury Type], [TBI Severity], [Mechanism], [Description], [LOC], [LOC Duration 
+(min)], [AOC/PTA], [AOC/PTA Duration (min)], [Injury Rank], [Notes]
+
+SUMARRY TABLE:
+- Change the subtitle to the following: "For Research Purposes Only: Summary Variables"
+- Please add the following description under the subtitle: "The following variables were derived via consensus (sections 1 & 2) and self-report (section 3). ***DISCLAIMER: This is NOT a clinical diagnosis. The report is only to
+be used a clinical aid and for research purposes. ***"
+
+- [TBI] - autofill to "Yes" or "No" depending on whether or not there are any injuries in the Injury table, where [Injury Type] is "TBI"; If [TBI] = "No",
+then grey out the following fields: [TBI Total #], [Index Injury: TBI Severity], [Index Injury: LOC], [Index Injury: LOC Duration (min)], [Index 
+Injury: AOC/PTA], [Index Injury: AOC/PTA Duration (min)], [Index Injury:Time  Since Index (most severe) TBI], [Index Injury: Pre-Military]
+- [TBI #] - auto sum all injuries with [Injury Type] "TBI" selected; also, please rename to [TBI Total #]
+- Pre-fill boxes for [TBI Severity], [LOC], [LOC Duration (min)], [AOC/PTA], [AOC/PTA Duration (min)], [Time Since Index (most severe) TBI], based on the
+previously entered injury table data for the #1 ranked injury (via [Injury Rank]) that is classified as a "TBI" (via [Injury Type]); Also, please preface 
+each of these labels with "Index Injury:" OR have a subtitle for this section to make it clear that this data is all associated with the "Index Injury", specifically
+
+- Auto-calculate [Index Injury: Time Since Index (most severe) TBI] (formula: [Encounter Date] - [Date] of #1 ranked TBI injury (index injury)); again, 
+"Index Injury" is defined as where  ([Injury Type] = "TBI" AND [Injury Rank] = 1)
+- Remove [Pre-mil TBI Severity], [Time Since Pre-mil TBI (yrs)], [Pre-mil TBI Mechanism]
+- Rename [Pre-Mil TBI] to [Index Injury: Pre-Military], group it with the  o her "Index Injury" fields (see order below), and autofill based on the [Pre-military] status of the index injury in the injury table; specifically,
+a "Yes" where ([Injury Type] = "TBI" AND [Injury Rank] = 1 AND [Pre-Military] = 1) and a "No" where ([Injury Type] = "TBI" AND [Injury Rank] = 1 AND [Pre-Military] = 0) - [Other Possible Concussive Events (Y/N)] - autofill to "Yes" or "No" 
+depending on whether or not there are any injuries in the Injury table, where [Injury Type] is "PCE" - [PCE Total #] - auto sum all injuries with [Injury Type] "PCE" selected; If "No", then grey out [PCE Total]
+- If [Blast Exposure] = "No", then grey out [BE Total Lifetime #], [BE Signif Events #]
+- If [Hard Landings] = "No", then grey out [Signif HL #]
+- If [Fast Boat (FB) Exposure] = "No", then grey out [FB Total (yrs)], [FB Signif Events #]
+- If [Breecher Exposure] = "No", then grey out [Breecher Lifetime Exposure #], [Breecher Signif Events #]; Also, "Breecher" should be corrected to "Breacher"
+- If [Martial Arts/Combatives] = "No", then grey out [MA Total (yrs)], [MA Signif Hits #]; also please change [MA Total Signif Hits #] to [MA Total  Signif Events #]
+- Order of fields (including updated/new fields): (section 1)  [TBI], [TBI Total #], [Other Possible Concussive Events], [PCE Total #], [Potential Anoxic Event]
+(section 2)  [Index Injury: Severity], [Index Injury: Mechanism], [Index Injury: LOC], [Index Injury: LOC Duration (min)], [Index Injury: AOC/PTA], 
+[Index Injury: AOC/PTA Duration (min)], [Index Injury: Time Since Injury], [Injury Index: Pre-Military]
+(section 3)  [Blast Exposure], [BE Total Lifetime #], [BE Signif Events #],[Breacher Exposure], [Breacher Lifetime Exposure #], [Breacher Signif Events #], [Hard Landings], [Jumps Total #], [Signif HL #], [Fast Boat (FB) 
+Exposure], [FB Total (yrs)], [FB Signif Events #], [Martial
+Arts/Combatives], [MA Total (yrs)], [MA Signif Hits #]
+- If possible, pls add some kind of borders and/or shading to visually  separate these three sub-sections
+
+EXPORTED WORD DOC
+- Please change "OSU-TBI ID Interview" description to: The following narrative was collected during a 60 minute interview with the above patient.Interviewer 
+notes may reflect additional injury information ascertained from the patient's intake questionnaire, initial IOP neuro history & exam and relevant AHLTA 
+records. ***DISCLAIMER: This is NOT a clinical diagnosis. The report is only to be used a clinical aid and for research purposes. ***
+- Please change the title "Concussions" to "For Research Purposes Only: Injury Table", with the following description, "INTERVIEWER: List any qualifying 
+injuries which resulted in a research determination of TBI or PCE and rank according to severity (where "1" is the most severe injury, also referred to
+as the "Index Injury").  The full narrative (above) is archived for more detailed accounts of each injury.  Please use the space below to BREIFLY 
+describe each qualifying event. ***DISCLAIMER: This is NOT a clinical diagnosis. The report is only to be used a clinical aid and for research 
+purposes. ***"
+- Please change orientation/formatting of the injury table output to match that of the form (print as landscape if need be)
+- Please change the title "TBI Screening Summary" to " For Research Purposes
+
+Only: Summary Variables ", with the following description, "The following variables were derived via consensus (sections 1 & 2) and self-report (section 3). ***DISCLAIMER: This is NOT a clinical diagnosis. The report is only to
+be used a clinical aid and for research purposes. ***"
+
+
+
+TBI Screening Form Questions: 
+
+Request information on the table format 
+
+
+
+
