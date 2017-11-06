@@ -87,7 +87,6 @@ names(pam_ct)<-paste(c("ID","med_ct"))
 pam_ct<-as.data.frame(pam_ct)
 mean(pam_ct$med_ct)
 
-
 #Subset entire dataset for Medication usage
 
 final_df<-merge(final_df,pam_ct,by="ID",all.x=TRUE)
@@ -95,7 +94,7 @@ final_df$med_ct<-ifelse(is.na(final_df$med_ct),0,final_df$med_ct)
 final_df$med_ct<-as.numeric(final_df$med_ct)
 
 #Comment out if not controlling for medications
-#final_df<-final_df%>% filter(!ID %in% pam$ID)
+final_df<-final_df%>% filter(!ID %in% pam$ID)
 ```
 
 ## Demographic Information
@@ -206,7 +205,8 @@ kable(abs)
 &nbsp; Scatterplot displaying relationships among Injury and other demographics against Total_C.
 ```{r dem_scatter, include=TRUE, echo=FALSE,fig.width=10,fig.height=10}
 #Formulas
-dem<-~Age+LOC+AOC+PTA+TimeInService+symp_tot+med_ct+Total_C
+#dem<-~Age+LOC+AOC+PTA+TimeInService+symp_tot+med_ct+Total_C
+dem<-~Age+LOC+AOC+PTA+TimeInService+symp_tot+Total_C
 sur<-~ABC_Tot_Score+NSI_Tot_Score+PCLM_Tot_Score+PHQ9_Tot_Score+GAD7_Tot_Score+DHI_Tot_Score+FGA+SOT+Total_C
 scatterplotMatrix(dem,data=final_df)
 ```
@@ -588,7 +588,7 @@ print(aov_list)
 
 ```{r 1, include=TRUE, echo=TRUE}
 dhi$I<-ifelse(dhi$Total_C>=1,"1","0")
-vestib<-dhi[,c(2:34,204)]
+vestib<-dhi[,c(2:8,11:34,204)]
 scores<-dhi[,c(37,38,66,81,85:90,107,142,161,70,201:204)]
 dem<-dhi[,c(39:46,162:169,170,204)]
 
@@ -620,7 +620,7 @@ vt$value<-as.numeric(vt$value)
 o<-sum(dhi$I=="0")
 i<-sum(dhi$I=="1")
 vt$Mean<-ifelse(vt$I=="1",round(vt$value/i*100,3),round(vt$value/o*100,3))
-vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-vt%>%filter(!value=="0")%>%arrange(-Mean)
 
 kable(vt[,-1])
 
@@ -637,7 +637,7 @@ summary.aov(mnv)
 
 ```{r 2, include=TRUE, echo=TRUE}
 dhi$I<-ifelse(dhi$Total_C>=2,"1","0")
-vestib<-dhi[,c(2:34,204)]
+vestib<-dhi[,c(2:8,11:34,204)]
 scores<-dhi[,c(37,38,66,81,85:90,107,142,161,70,201:204)]
 dem<-dhi[,c(39:46,162:169,170,204)]
 
@@ -669,7 +669,7 @@ vt$value<-as.numeric(vt$value)
 o<-sum(dhi$I=="0")
 i<-sum(dhi$I=="1")
 vt$Mean<-ifelse(vt$I=="1",round(vt$value/i*100,3),round(vt$value/o*100,3))
-vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-vt%>%filter(!value=="0")%>%arrange(-Mean)
 
 kable(vt[,-1])
 
@@ -686,7 +686,7 @@ summary.aov(mnv)
 
 ```{r 3, include=TRUE, echo=TRUE}
 dhi$I<-ifelse(dhi$Total_C>=3,"1","0")
-vestib<-dhi[,c(2:34,204)]
+vestib<-dhi[,c(2:8,11:34,204)]
 scores<-dhi[,c(37,38,66,81,85:90,107,142,161,70,201:204)]
 dem<-dhi[,c(39:46,162:169,170,204)]
 
@@ -718,7 +718,7 @@ vt$value<-as.numeric(vt$value)
 o<-sum(dhi$I=="0")
 i<-sum(dhi$I=="1")
 vt$Mean<-ifelse(vt$I=="1",round(vt$value/i*100,3),round(vt$value/o*100,3))
-vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-vt%>%filter(!value=="0")%>%arrange(-Mean)
 
 kable(vt[,-1])
 
@@ -731,13 +731,11 @@ summary(mnv)
 summary.aov(mnv)
 ```
 
-
-
 ##Cutoff of 4
 
 ```{r 4, include=TRUE, echo=TRUE}
 dhi$I<-ifelse(dhi$Total_C>=4,"1","0")
-vestib<-dhi[,c(2:34,204)]
+vestib<-dhi[,c(2:8,11:34,204)]
 scores<-dhi[,c(37,38,66,81,85:90,107,142,161,70,201:204)]
 dem<-dhi[,c(39:46,162:169,170,204)]
 
@@ -769,7 +767,7 @@ vt$value<-as.numeric(vt$value)
 o<-sum(dhi$I=="0")
 i<-sum(dhi$I=="1")
 vt$Mean<-ifelse(vt$I=="1",round(vt$value/i*100,3),round(vt$value/o*100,3))
-vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-vt%>%filter(!value=="0")%>%arrange(-Mean)
 
 kable(vt[,-1])
 
@@ -786,7 +784,7 @@ summary.aov(mnv)
 
 ```{r 5, include=TRUE, echo=TRUE}
 dhi$I<-ifelse(dhi$Total_C>=5,"1","0")
-vestib<-dhi[,c(2:34,204)]
+vestib<-dhi[,c(2:8,11:34,204)]
 scores<-dhi[,c(37,38,66,81,85:90,107,142,161,70,201:204)]
 dem<-dhi[,c(39:46,162:169,170,204)]
 
@@ -818,7 +816,7 @@ vt$value<-as.numeric(vt$value)
 o<-sum(dhi$I=="0")
 i<-sum(dhi$I=="1")
 vt$Mean<-ifelse(vt$I=="1",round(vt$value/i*100,3),round(vt$value/o*100,3))
-vt<-vt%>%filter(!value==0)%>%arrange(-Mean)
+vt<-vt%>%filter(!value=="0")%>%arrange(-Mean)
 
 kable(vt[,-1])
 
@@ -831,12 +829,37 @@ summary(mnv)
 summary.aov(mnv)
 ```
 
-##Medications
+#Medications{.tabset}
+&nbsp; Control for medications, we'll remove those subjects with medications which interfer with central functioning.
 
+##Subsetting 
 ```{r meds, include=TRUE, echo=FALSE}
 #table(dhi$am,dhi$Total_C)
 #table(dhi$pm,dhi$Total_C)
 #table(dhi$pam,dhi$Total_C)
+# length(final_df$ID)
+# 
+# med_counts<-final_df%>%
+#   group_by(Total_C)%>%
+#   summarise(mean=means(med_ct))
+# 
+# kable(med_counts)
+# final_df<-final_df%>% filter(!ID %in% pam$ID)
+# length(final_df$ID)
+# 
+# mean(final_df$Total_C)
+# ggplot(final_df,aes(x=Total_C))+geom_bar(fill="navyblue",binwidth=0.5)+ggtitle("Histogram of Total Number of Central Signs without Meds")+
+#   theme(plot.title=element_text(hjust=0.5,vjust=0.1))+scale_y_continuous(expand=c(0,0))+xlab("Total Number of Centeral Signs")+
+#   ylab("Frequency")+expand_limits(y=c(0,175))
+
+
+
+
+
+
+```
+
+
 
 
 
@@ -846,7 +869,6 @@ summary.aov(mnv)
 
 
 #ANOVA to test for differences in responses 
-```
 
 
 #Comments/Questions:
